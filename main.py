@@ -10,13 +10,17 @@ import torchvision
 from torch.utils.data import random_split
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
+import math
 
 from nets.vgg import vgg19_bn
+from nets.resnet import *
+
+import utils
 parser = argparse.ArgumentParser(description='PyTorch Deeper Network Examples')
 
-TRAIN_TIMES = 500
-BATCH_SIZE = 64
-LR = 0.0001
+TRAIN_TIMES = 100
+BATCH_SIZE = 288
+LR = 0.005
 log_interval = 10
 
 val_size = 5000
@@ -29,7 +33,7 @@ def data_downloader(dataset,download=False):
                                          transforms.Normalize((0.5,), (0.5,))
                                         ])
     cifar_data_transform = transforms.Compose([transforms.ToTensor(),
-                                         transforms.Normalize((0.5,), (0.5,))
+                                               transforms.Normalize((0.5,), (0.5,))
                                         ])
     if dataset == "MNIST":
         data = torchvision.datasets.MNIST('./data',
@@ -42,6 +46,7 @@ def data_downloader(dataset,download=False):
                                      download=download
                                      )
     return data
+
 
 
 
@@ -71,7 +76,7 @@ test_loader = Data.DataLoader(dataset=test_dataset, batch_size = BATCH_SIZE)
 
 
 # load network
-vgg = vgg19_bn().to(device)
+vgg = resnet50().to(device)
 
 optimizer = torch.optim.Adam(vgg.parameters(), lr = LR)
 criterion = nn.CrossEntropyLoss()
@@ -81,7 +86,7 @@ for images, _ in train_loader:
     print('images.shape:', images.shape)
     plt.figure(figsize=(16,8))
     plt.axis('off')
-    plt.imshow(make_grid(images, nrow=8).permute((1, 2, 0)))
+    plt.imshow(make_grid(images, nrow=12).permute((1, 2, 0)))
     plt.show()
     break
 
@@ -91,6 +96,8 @@ for images, _ in train_loader:
 #
 """
 train_losses = []
+train_error = []
+
 train_counter = []
 test_losses = []
 test_counter = [i*len(train_loader.dataset) for i in range(TRAIN_TIMES + 1)]
@@ -109,9 +116,11 @@ def testing(testing_data_loader):
             correct += pred.eq(target.data.view_as(pred)).sum()
     test_loss /= len(testing_data_loader.dataset)
     test_losses.append(test_loss)
-    print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('\nTest set: Avg. loss: {:.4f}\t Accuracy: {}/{} ({:.1f}%) Error: ({:.1f}%)\n'.format(
         test_loss, correct, len(testing_data_loader.dataset),
-        100. * correct / len(testing_data_loader.dataset)))
+        100. * correct / len(testing_data_loader.dataset),
+        100. * (len(testing_data_loader.dataset)-correct)/len(testing_data_loader.dataset)))
+    train_error.append(100. * (len(testing_data_loader.dataset)-correct)/len(testing_data_loader.dataset))
 
 for epoch in range(TRAIN_TIMES):
 
@@ -133,14 +142,16 @@ for epoch in range(TRAIN_TIMES):
             train_losses.append(loss.item())
             train_counter.append(
                 (step * 64) + ((epoch - 1) * len(train_loader.dataset)))
-    torch.save(vgg.state_dict(), './models/model.pth')
-    torch.save(optimizer.state_dict(), './models/optimizer.pth')
 
-    dataset = "./models/model.pth"
-    model = vgg19_bn().to(device)
-    model.load_state_dict(torch.load(dataset))
+            #torch.save(vgg.state_dict(), './models/model.pth')
+            #torch.save(optimizer.state_dict(), './models/optimizer.pth')
+            utils.plot_loss(train_losses)
+            utils.plot_error(train_error)
+            dataset = "./models/model.pth"
+            model = resnet50().to(device)
+            model.load_state_dict(torch.load(dataset))
 
-    testing(validate_loader)
+            testing(validate_loader)
 
 
 """
