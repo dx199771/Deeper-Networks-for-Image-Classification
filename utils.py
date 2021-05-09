@@ -21,3 +21,4 @@ def plot_error(error):
     plt.plot(error, 'g', label='Training error')
     #plt.show()
     plt.savefig('error.png')
+

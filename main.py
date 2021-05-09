@@ -1,5 +1,6 @@
 import argparse
 import torch
+from time import time
 import numpy as np
 import torchvision
 import torch.utils.data as Data
@@ -13,16 +14,17 @@ from torchvision.utils import make_grid
 import math
 
 from nets.vgg import vgg19_bn
+from nets.densenet import *
 from nets.resnet import *
-
+from nets.vgg import *
 import utils
 parser = argparse.ArgumentParser(description='PyTorch Deeper Network Examples')
 
 TRAIN_TIMES = 100
-BATCH_SIZE = 288
-LR = 0.005
+BATCH_SIZE = 500
+LR = 0.01
 log_interval = 10
-
+model = "resnet101"
 val_size = 5000
 
 def data_downloader(dataset,download=False):
@@ -76,9 +78,9 @@ test_loader = Data.DataLoader(dataset=test_dataset, batch_size = BATCH_SIZE)
 
 
 # load network
-vgg = resnet50().to(device)
+model_loader = eval(model+"()").to(device)
 
-optimizer = torch.optim.Adam(vgg.parameters(), lr = LR)
+optimizer = torch.optim.Adam(model_loader.parameters(), lr = LR)
 criterion = nn.CrossEntropyLoss()
 
 
@@ -110,26 +112,26 @@ def testing(testing_data_loader):
         for data, target in testing_data_loader:
             data = Variable(data).to(device)
             target = Variable(target).to(device)
-            output = vgg(data)
+            output = model_loader(data)
             test_loss += criterion(output, target)
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).sum()
     test_loss /= len(testing_data_loader.dataset)
     test_losses.append(test_loss)
-    print('\nTest set: Avg. loss: {:.4f}\t Accuracy: {}/{} ({:.1f}%) Error: ({:.1f}%)\n'.format(
+    print('\nValidation: Loss: {:.6f}\t Accuracy: {}/{} ({:.1f}%) Error: ({:.1f}%)\n'.format(
         test_loss, correct, len(testing_data_loader.dataset),
         100. * correct / len(testing_data_loader.dataset),
         100. * (len(testing_data_loader.dataset)-correct)/len(testing_data_loader.dataset)))
     train_error.append(100. * (len(testing_data_loader.dataset)-correct)/len(testing_data_loader.dataset))
 
 for epoch in range(TRAIN_TIMES):
-
+    start_time = time()
     for step,(inputs, labels) in enumerate(train_loader):
         inputs = Variable(inputs).to(device)
         labels = Variable(labels).to(device)
 
         optimizer.zero_grad()
-        output = vgg(inputs)
+        output = model_loader(inputs)
 
         loss = criterion(output,labels)
         loss.backward()
@@ -143,15 +145,18 @@ for epoch in range(TRAIN_TIMES):
             train_counter.append(
                 (step * 64) + ((epoch - 1) * len(train_loader.dataset)))
 
-            #torch.save(vgg.state_dict(), './models/model.pth')
+            # save trained model
+            torch.save(model_loader.state_dict(), './models/model_{}.pth'.format(model))
             #torch.save(optimizer.state_dict(), './models/optimizer.pth')
             utils.plot_loss(train_losses)
             utils.plot_error(train_error)
-            dataset = "./models/model.pth"
-            model = resnet50().to(device)
-            model.load_state_dict(torch.load(dataset))
-
+            dataset = './models/model_{}.pth'.format(model)
+            #model = eval(model+"()").to(device)
+            #model.load_state_dict(torch.load(dataset))
             testing(validate_loader)
+
+        end_time = time()
+    print("Training time on {} batch size: {}s".format(BATCH_SIZE,(end_time-start_time)))
 
 
 """
