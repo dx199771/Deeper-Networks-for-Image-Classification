@@ -98,31 +98,41 @@ for images, _ in train_loader:
 #
 """
 train_losses = []
-train_error = []
-
 train_counter = []
-test_losses = []
-test_counter = [i*len(train_loader.dataset) for i in range(TRAIN_TIMES + 1)]
 
+evaluate_losses = []
+evaluate_error = []
 
-def testing(testing_data_loader):
-    test_loss = 0
+def predicted_image(input_img,input_label,output_label):
+    grid_img = torchvision.utils.make_grid(input_img[:25].cpu(), nrow=5)
+    print(grid_img.shape)
+    plt.imshow(grid_img.permute(1, 2, 0))
+    plt.show()
+def evaluator(validate_loader):
+    loss = 0
     correct = 0
     with torch.no_grad():
-        for data, target in testing_data_loader:
-            data = Variable(data).to(device)
-            target = Variable(target).to(device)
-            output = model_loader(data)
-            test_loss += criterion(output, target)
+        for step,(inputs,labels) in enumerate(validate_loader):
+            inputs = Variable(inputs).to(device)
+            labels = Variable(labels).to(device)
+            output = model_loader(inputs)
+            predicted_image(inputs,labels,output)
+            loss += criterion(output, labels)
             pred = output.data.max(1, keepdim=True)[1]
-            correct += pred.eq(target.data.view_as(pred)).sum()
-    test_loss /= len(testing_data_loader.dataset)
-    test_losses.append(test_loss)
-    print('\nValidation: Loss: {:.6f}\t Accuracy: {}/{} ({:.1f}%) Error: ({:.1f}%)\n'.format(
-        test_loss, correct, len(testing_data_loader.dataset),
-        100. * correct / len(testing_data_loader.dataset),
-        100. * (len(testing_data_loader.dataset)-correct)/len(testing_data_loader.dataset)))
-    train_error.append(100. * (len(testing_data_loader.dataset)-correct)/len(testing_data_loader.dataset))
+            correct += pred.eq(labels.data.view_as(pred)).sum()
+            num_batch = step
+    loss /= num_batch
+
+    print('Validation: \t[{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
+        correct, len(validate_loader.dataset), 100. * correct / len(validate_loader.dataset),
+        loss))
+
+    evaluate_losses.append(loss)
+    evaluate_error.append(100. * correct / len(validate_loader.dataset))
+    utils.plot_loss(evaluate_losses)
+    utils.plot_error(evaluate_error)
+
+#def training():
 
 for epoch in range(TRAIN_TIMES):
     start_time = time()
@@ -138,22 +148,23 @@ for epoch in range(TRAIN_TIMES):
         optimizer.step()
 
         if step % log_interval == 1:    # print every log_interval mini-batches
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(
                 epoch, step * len(inputs), len(train_loader.dataset),
                        100. * step / len(train_loader), loss.item()))
+
             train_losses.append(loss.item())
-            train_counter.append(
+            train_counter.append( ##???
                 (step * 64) + ((epoch - 1) * len(train_loader.dataset)))
+            utils.plot_loss(train_losses)
 
             # save trained model
             torch.save(model_loader.state_dict(), './models/model_{}.pth'.format(model))
             #torch.save(optimizer.state_dict(), './models/optimizer.pth')
-            utils.plot_loss(train_losses)
-            utils.plot_error(train_error)
+
             dataset = './models/model_{}.pth'.format(model)
             #model = eval(model+"()").to(device)
             #model.load_state_dict(torch.load(dataset))
-            testing(validate_loader)
+            evaluator(validate_loader)
 
         end_time = time()
     print("Training time on {} batch size: {}s".format(BATCH_SIZE,(end_time-start_time)))

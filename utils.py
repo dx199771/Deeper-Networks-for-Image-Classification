@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-def plot_loss(loss):
+def plot_loss(loss,display=False):
     plt.figure(0)
 
     plt.title('Training loss')
@@ -8,10 +8,11 @@ def plot_loss(loss):
     plt.ylabel('Loss')
 
     plt.plot(loss, 'g', label='Training loss')
-    #plt.show()
+    if display:
+        plt.show()
     plt.savefig('loss.png')
 
-def plot_error(error):
+def plot_error(error,display=False):
     plt.figure(1)
 
     plt.title('Training loss')
@@ -19,6 +20,7 @@ def plot_error(error):
     plt.ylabel('Error %')
 
     plt.plot(error, 'g', label='Training error')
-    #plt.show()
+    if display:
+        plt.show()
     plt.savefig('error.png')
 
