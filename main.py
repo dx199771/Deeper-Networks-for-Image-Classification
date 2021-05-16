@@ -1,3 +1,12 @@
+"""
+    Author: Xu Dong
+    Student Number: 200708160
+    Email: x.dong@se20.qmul.ac.uk
+
+    School of Electronic Engineering and Computer Science
+    Queen Mary University of London, UK
+    London, UK
+"""
 from time import time
 import numpy as np
 import utils, random, argparse
@@ -18,17 +27,16 @@ from nets.resnet_improved import *
 from nets.vgg import *
 
 
-parser = argparse.ArgumentParser(description='PyTorch Deeper Network Examples')
+parser = argparse.ArgumentParser(description='PyTorch Deeper Networks')
 parser.add_argument('--lr', default=0.01, type=float, help='initial learning rate')
-parser.add_argument('--epoch', default=45, type=int, help='training times')
+parser.add_argument('--epoch', default=40, type=int, help='training times')
 parser.add_argument('--batch_size', default=128, type=int, help='number of samples in one pass')
 parser.add_argument('--log_interval', default=40, type=int, help='log interval between every output and plot')
 parser.add_argument('--val_size', default=5000, type=int, help='validation set size')
 parser.add_argument('--dataset_name', default="CIFAR10", type=str, help='training dataset name')
+parser.add_argument('--download_data', default=True, type=bool, help='whether download training data')
 
 args = parser.parse_args()
-
-
 
 def show_sample():
     # display some example dataset images
@@ -41,15 +49,15 @@ def show_sample():
         break
 
 
-def data_downloader(dataset, download=False):
-    # MNIST data transform without data augmentation
+def data_downloader(dataset, download=True):
+    # MNIST data transformation without data augmentation
     mnist_data_transform = transforms.Compose([
          transforms.Grayscale(3),
          transforms.Resize([32,32]),
          transforms.ToTensor(),
          transforms.Normalize((0.5,), (0.5,))
                                         ])
-    # CIFAR-10 data transform with data augmentation
+    # CIFAR-10 data transformation with data augmentation
     cifar_data_transform_augumentation = transforms.Compose([
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomCrop(32, padding=4),
@@ -86,7 +94,6 @@ def data_downloader(dataset, download=False):
     return data
 
 
-
 def validation(validate_loader,validation_loss,validation_error):
     # evaluate on validation set
     correct = 0
@@ -95,12 +102,15 @@ def validation(validate_loader,validation_loss,validation_error):
         for step,(inputs,labels) in enumerate(validate_loader):
             inputs = Variable(inputs).to(device)
             labels = Variable(labels).to(device)
+
             output = model_loader(inputs)
             loss = criterion(output, labels)
             valid_loss += loss.item()*inputs.size(0)
+            # get predicted value
             pred = output.data.max(1, keepdim=True)[1]
+            # record all correctly predicted values
             correct += pred.eq(labels.data.view_as(pred)).sum()
-    valid_loss = valid_loss / len(validate_loader.sampler)
+    valid_loss = valid_loss / len(validate_loader.sampler) # average loss value
 
     print('Validation: \t[{}/{} Error: ({:.1f}%)]\tLoss: {:.6f}'.format(
         correct, len(validate_loader.dataset), 100-(100. * correct / len(validate_loader.dataset)),
@@ -111,8 +121,10 @@ def validation(validate_loader,validation_loss,validation_error):
 
     return validation_loss,validation_error
 
+
 def testing(testing_loader):
     print("Testing.......")
+    # record testing history
     total = 0
     correct = 0
     with torch.no_grad():
@@ -132,7 +144,9 @@ def testing(testing_loader):
 
     return 100-(100. * correct / len(testing_loader.dataset))
 
+
 def training(training_loader, train_loss, validation_loss, validation_error):
+    # get start time
     start_time = time()
     for step,(inputs, labels) in enumerate(training_loader):
         inputs = Variable(inputs).to(device)
@@ -196,6 +210,7 @@ criterion = nn.CrossEntropyLoss()
 """
 # test on all 7 models
 testing_models= ["vgg16_bn","vgg19_bn","improved_resnet18","improved_resnet50","improved_resnet101","densenet121","densenet161"]
+
 """
     METHODS WITHOUT IMPROVEMENTS
 """
@@ -225,7 +240,8 @@ for i in range(len(testing_models)):
 
     # set up optimizer and learning rate scheduler(optional)
     optimizer = torch.optim.AdamW(model_loader.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+    #optimizer = torch.optim.Adam(model_loader.parameters(), lr=lr)
+    #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
     for epoch in range(args.epoch):
         # train for one epoch
