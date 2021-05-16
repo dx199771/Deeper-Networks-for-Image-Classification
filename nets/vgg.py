@@ -1,3 +1,5 @@
+# according to <arXiv:1603.05027>
+# source code from pytorch vgg library
 import torch
 import torch.nn as nn
 from typing import Union, List, Dict, Any, cast
